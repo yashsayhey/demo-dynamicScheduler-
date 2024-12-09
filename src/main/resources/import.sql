@@ -1,0 +1,1 @@
+INSERT INTO job_config (job_name, cron, my_variable) VALUES ('Job1', '0/10 * * * * *', 'Variable1'),('Job2', '0/15 * * * * *', 'Variable2');
