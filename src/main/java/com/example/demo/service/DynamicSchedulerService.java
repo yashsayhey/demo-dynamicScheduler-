@@ -27,18 +27,30 @@ public class DynamicSchedulerService {
     private final HashMap<String, ScheduledFuture<?>> scheduledJobs = new HashMap<>();
 
     /**
-     * Scheduling Factory jobs during the initialisation
+     * Scheduling Factory jobs during the initialization
      */
     @PostConstruct
     public void setup() {
-        List<JobConfig> jobConfigs = jobConfigRepository.findAll();
-        jobConfigs.forEach(config -> {
-            ScheduledFuture<?> scheduledFuture = Objects.requireNonNull(taskScheduler.schedule(
-                    () -> executeJob(config),
-                    new CronTrigger(config.getCron())
-            ));
-            scheduledJobs.put(config.getJobName(), scheduledFuture);
-        });
+        try {
+            List<JobConfig> jobConfigs = jobConfigRepository.findAll();
+            jobConfigs.forEach(config -> {
+                try {
+                    ScheduledFuture<?> scheduledFuture = Objects.requireNonNull(taskScheduler.schedule(
+                            () -> executeJob(config),
+                            new CronTrigger(config.getCron())
+                    ));
+                    scheduledJobs.put(config.getJobName(), scheduledFuture);
+                } catch (IllegalArgumentException e) {
+                    System.err.println("[" + LocalDateTime.now() + "] Invalid cron expression for job: "
+                            + config.getJobName() + " - " + e.getMessage());
+                } catch (Exception e) {
+                    System.err.println("[" + LocalDateTime.now() + "] Error scheduling job: "
+                            + config.getJobName() + " - " + e.getMessage());
+                }
+            });
+        } catch (Exception e) {
+            System.err.println("[" + LocalDateTime.now() + "] Error initializing scheduler: " + e.getMessage());
+        }
     }
 
     /**
@@ -48,9 +60,14 @@ public class DynamicSchedulerService {
     public void updateJob(JobConfig jobConfig) {
         System.out.println("[" + LocalDateTime.now() + "] Updating job " + jobConfig.getJobName()
                 + " with new cron " + jobConfig.getCron());
-        if(scheduledJobs.containsKey(jobConfig.getJobName())) {
-            cancelJob(jobConfig.getJobName());
+        try {
+            if (scheduledJobs.containsKey(jobConfig.getJobName())) {
+                cancelJob(jobConfig.getJobName());
+            }
             scheduleJob(jobConfig);
+        } catch (Exception e) {
+            System.err.println("[" + LocalDateTime.now() + "] Error updating job: "
+                    + jobConfig.getJobName() + " - " + e.getMessage());
         }
     }
 
@@ -60,10 +77,17 @@ public class DynamicSchedulerService {
      */
     public void cancelJob(String jobName) {
         System.out.println("[" + LocalDateTime.now() + "] Cancelling job " + jobName);
-        ScheduledFuture<?> future = scheduledJobs.get(jobName);
-        if (future != null) {
-            future.cancel(true);
-            scheduledJobs.remove(jobName);
+        try {
+            ScheduledFuture<?> future = scheduledJobs.get(jobName);
+            if (future != null) {
+                future.cancel(true);
+                scheduledJobs.remove(jobName);
+            } else {
+                System.err.println("[" + LocalDateTime.now() + "] Job not found: " + jobName);
+            }
+        } catch (Exception e) {
+            System.err.println("[" + LocalDateTime.now() + "] Error cancelling job: "
+                    + jobName + " - " + e.getMessage());
         }
     }
 
@@ -74,10 +98,18 @@ public class DynamicSchedulerService {
     public void scheduleJob(JobConfig jobConfig) {
         System.out.println("[" + LocalDateTime.now() + "] Scheduling job " + jobConfig.getJobName()
                 + " with cron " + jobConfig.getCron());
-        ScheduledFuture<?> scheduledFuture = taskScheduler.schedule(
-                () -> executeJob(jobConfig),
-                new CronTrigger(jobConfig.getCron()));
-        scheduledJobs.put(jobConfig.getJobName(), scheduledFuture);
+        try {
+            ScheduledFuture<?> scheduledFuture = taskScheduler.schedule(
+                    () -> executeJob(jobConfig),
+                    new CronTrigger(jobConfig.getCron()));
+            scheduledJobs.put(jobConfig.getJobName(), scheduledFuture);
+        } catch (IllegalArgumentException e) {
+            System.err.println("[" + LocalDateTime.now() + "] Invalid cron expression for job: "
+                    + jobConfig.getJobName() + " - " + e.getMessage());
+        } catch (Exception e) {
+            System.err.println("[" + LocalDateTime.now() + "] Error scheduling job: "
+                    + jobConfig.getJobName() + " - " + e.getMessage());
+        }
     }
 
     /**
@@ -85,7 +117,13 @@ public class DynamicSchedulerService {
      * @param jobConfig: Job configurations such as job name, cron expression, etc
      */
     public void executeJob(JobConfig jobConfig) {
-        System.out.println("[" + LocalDateTime.now() + "] Executing job " + jobConfig.getJobName()
-        + " with cron " + jobConfig.getCron());
+        try {
+            System.out.println("[" + LocalDateTime.now() + "] Executing job " + jobConfig.getJobName()
+                    + " with cron " + jobConfig.getCron());
+            // Add actual job logic here.
+        } catch (Exception e) {
+            System.err.println("[" + LocalDateTime.now() + "] Error executing job: "
+                    + jobConfig.getJobName() + " - " + e.getMessage());
+        }
     }
 }
